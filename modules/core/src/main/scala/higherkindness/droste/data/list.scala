@@ -51,6 +51,8 @@ object ListF {
       implicit T: Basis[ListF[A, ?], T]): Monoid[T] =
     new Monoid[T] {
       def empty = T.algebra(NilF)
+      override def combineAll(xs: TraversableOnce[T]): T =
+        xs.foldRight(empty)(combine)
       def combine(f1: T, f2: T): T = {
         scheme
           .cata(Algebra[ListF[A, ?], T] {
