@@ -4,6 +4,7 @@ package list
 
 import cats.Applicative
 import cats.Eq
+import cats.Eval
 import cats.Monoid
 import cats.Traverse
 import cats.syntax.applicative._
@@ -55,11 +56,12 @@ object ListF {
         xs.foldRight(empty)(combine)
       def combine(f1: T, f2: T): T = {
         scheme
-          .cata(Algebra[ListF[A, ?], T] {
-            case NilF => f2
-            case cons => T.algebra(cons)
+          .cataM(AlgebraM[Eval, ListF[A, ?], T] {
+            case NilF => Eval.later(f2)
+            case cons => Eval.now(T.algebra(cons))
           })
           .apply(f1)
+          .value
       }
     }
 
