@@ -4,6 +4,7 @@ package list
 
 import cats.Applicative
 import cats.Eq
+import cats.Eval
 import cats.Monoid
 import cats.Traverse
 import cats.syntax.applicative._
@@ -20,21 +21,37 @@ object ListF {
   def toScalaList[A, PatR[_[_]]](list: PatR[ListF[A, ?]])(
       implicit ev: Project[ListF[A, ?], PatR[ListF[A, ?]]]
   ): List[A] =
-    scheme.cata(toScalaListAlgebra[A]).apply(list)
+    scheme.cataM(toScalaListAlgebraInEval[A]).apply(list).value
 
   def toScalaListAlgebra[A]: Algebra[ListF[A, ?], List[A]] = Algebra {
     case ConsF(head, tail) => head :: tail
     case NilF              => Nil
   }
 
+  private def toScalaListAlgebraInEval[A]: AlgebraM[
+    Eval,
+    ListF[A, ?],
+    List[A]] = AlgebraM {
+    case ConsF(head, tail) => Eval.later(head :: tail)
+    case NilF              => Eval.now(Nil)
+  }
+
   def fromScalaList[A, PatR[_[_]]](list: List[A])(
       implicit ev: Embed[ListF[A, ?], PatR[ListF[A, ?]]]
   ): PatR[ListF[A, ?]] =
-    scheme.ana(fromScalaListCoalgebra[A]).apply(list)
+    scheme.anaM(fromScalaListCoalgebraInEval[A]).apply(list).value
 
   def fromScalaListCoalgebra[A]: Coalgebra[ListF[A, ?], List[A]] = Coalgebra {
     case head :: tail => ConsF(head, tail)
     case Nil          => NilF
+  }
+
+  private def fromScalaListCoalgebraInEval[A]: CoalgebraM[
+    Eval,
+    ListF[A, ?],
+    List[A]] = CoalgebraM {
+    case head :: tail => Eval.later(ConsF(head, tail))
+    case Nil          => Eval.now(NilF)
   }
 
   implicit def drosteTraverseForListF[A]: Traverse[ListF[A, ?]] =
